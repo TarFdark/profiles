@@ -1,13 +1,29 @@
+from datetime import date
 from aiogram import Dispatcher
 from aiogram.dispatcher import FSMContext
 from aiogram.types import Message
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from tgbot.models.role import UserRole
 from tgbot.services.repository import Repo
+from db.pool_creater import create_pool
 
 
 async def admin_start(message: Message):
     await message.reply("Hello, admin!")
+    sm = await create_pool("profiles", True)
+    repo = Repo(sm())
+    await repo.add_user(
+        telegram_id=1,
+        telegram_first_name=f"tg://user?id={1}",
+        first_name="first_name",
+        last_name="last_name",
+        surname="surname",
+        birthday=date.today(),
+        city="city",
+        bio="bio",
+        images=['1']
+    )
 
 
 def register_admin(dp: Dispatcher):
