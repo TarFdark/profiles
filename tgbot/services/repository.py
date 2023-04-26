@@ -73,3 +73,25 @@ class Repo:
                 select(User)
             )
         ]
+
+
+    async def get_user(self, telegram_id: int) -> User | None:
+        """Return user by telegram id or None
+
+        Args:
+            telegram_id (int): telegram user id
+
+        Returns:
+            User | None: user object
+        """
+
+        return next(
+            iter(
+                row 
+                for row in await self.conn.execute(
+                    select(User).where(User.telegram_id == telegram_id)
+                )
+            ),
+            None
+        )
+
