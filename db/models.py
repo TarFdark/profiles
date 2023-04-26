@@ -1,6 +1,6 @@
 from datetime import datetime
 from typing import List
-from sqlalchemy import Column, BigInteger, Text, Date, DateTime, ForeignKey, String
+from sqlalchemy import Column, BigInteger, Integer, Text, Date, DateTime, ForeignKey
 from sqlalchemy.orm import relationship
 
 
@@ -10,7 +10,7 @@ from db.base import Base
 class BaseCommon(Base):
     __abstract__ = True
 
-    id = Column(BigInteger, primary_key=True)
+    id = Column(Integer, primary_key=True)
     created_on = Column(DateTime, default=datetime.now)
     updated_on = Column(DateTime, default=datetime.now, onupdate=datetime.now)
 
@@ -30,7 +30,10 @@ class User(BaseCommon):
     city        = Column(Text)
     bio         = Column(Text)
 
-    images = relationship("user_images")
+    images = relationship("UserImage", backref='user')
+
+    def __repr__(self):
+        return f'User({self.id = }, {self.telegram_id = }, {self.telegram_link = }, {self.telegram_name = }, {self.first_name = }, {self.last_name}, {self.surname = }, {self.birthday = }, {self.city = }, {self.bio = })'
 
 
 class UserImage(BaseCommon):
