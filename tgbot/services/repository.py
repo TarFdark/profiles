@@ -2,6 +2,7 @@ import logging
 
 from typing import List
 from datetime import date
+from sqlalchemy.future import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from db.models import User, UserImage
@@ -17,7 +18,7 @@ class Repo:
     def __init__(self, conn):
         self.conn: AsyncSession = conn
 
-    # users
+
     async def add_user(self, telegram_id: int, telegram_first_name: str, first_name: str, last_name: str, surname: str, birthday: date, city: str, bio: str, images: list[str], telegram_last_name: str = "") -> None:
         """Add new user to DB if doesn't exist
 
@@ -52,18 +53,23 @@ class Repo:
         logger.info(f"add new user {user}")
 
         for image in images:
-            user_image = UserImage(path=image, user_telegram_id=user.telegram_id)
+            user_image = UserImage(path=image, user=user)
             self.conn.add(user_image)
             logger.info(f"add new user image {user_image}")
 
         await self.conn.commit()
 
 
-    async def list_users(self) -> List[int]:
-        """List all bot users"""
+    async def get_users(self) -> List[User]:
+        """List all user's forms
+
+        Returns:
+            List[User]: list of users
+        """
+
         return [
-            # row[0]
-            # async for row in self.conn.execute(
-            #     "select userid from tg_users",
-            # )
+            row 
+            for row in await self.conn.execute(
+                select(User)
+            )
         ]

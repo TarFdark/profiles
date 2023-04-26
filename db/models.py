@@ -32,10 +32,13 @@ class User(BaseCommon):
 
     images = relationship("UserImage", backref='user')
 
+    def __repr__(self):
+        return f'User({self.id = }, {self.telegram_id = }, {self.telegram_link = }, {self.telegram_name = }, {self.first_name = }, {self.last_name}, {self.surname = }, {self.birthday = }, {self.city = }, {self.bio = })'
+
 
 class UserImage(BaseCommon):
     __tablename__ = "user_images"
 
     path = Column(Text)
 
-    user_telegram_id = Column(BigInteger, ForeignKey('users.telegram_id'))
+    user_id = Column(BigInteger, ForeignKey('users.id'))

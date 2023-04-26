@@ -11,7 +11,7 @@ from db.pool_creater import create_pool
 
 async def admin_start(message: Message):
     await message.reply("Hello, admin!")
-    sm = await create_pool("profiles", True)
+    sm = await create_pool("profiles", False)
     repo = Repo(sm())
     await repo.add_user(
         telegram_id=1,
@@ -24,6 +24,7 @@ async def admin_start(message: Message):
         bio="bio",
         images=['1']
     )
+    print(await repo.get_users())
 
 
 def register_admin(dp: Dispatcher):
