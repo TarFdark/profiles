@@ -12,7 +12,7 @@ from state.state_admin import FSMedit
 
 async def admin_start(message: Message, bot:Bot):
     await bot.send_message(message.from_user.id,
-                           f"Добро пожаловать {message.from_user.first_name}", reply_markup=keyboards.kb_menu)
+                           f"Добро пожаловать test {message.from_user.first_name}", reply_markup=keyboards.kb_menu)
 
 async def search_change_profile(call, state:FSMContext):
     await FSMedit.base_state.set()
