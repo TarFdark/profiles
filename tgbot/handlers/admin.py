@@ -1,5 +1,5 @@
 from datetime import date
-from aiogram import Dispatcher
+from aiogram import Dispatcher, Bot
 from aiogram.dispatcher import FSMContext
 from aiogram.types import Message
 from sqlalchemy.ext.asyncio import AsyncSession
