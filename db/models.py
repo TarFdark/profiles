@@ -18,27 +18,33 @@ class BaseCommon(Base):
 class User(BaseCommon):    
     __tablename__ = "users"
 
-    telegram_id     = Column(BigInteger)
-    telegram_link   = Column(Text)                    # tg://user?id=<telegram_id>
-    telegram_name   = Column(Text)                    # firstname + (" " + lastname if lastname else "")
+    telegram_id = Column(BigInteger)
+    telegram_link = Column(Text)                    # tg://user?id=<telegram_id>
+    telegram_name = Column(Text)                    # firstname + (" " + lastname if lastname else "")
 
     # fill by user
-    first_name  = Column(Text)
-    last_name   = Column(Text)
-    surname     = Column(Text)
-    birthday    = Column(Date)
-    city        = Column(Text)
-    bio         = Column(Text)
+    last_name = Column(Text)
+    first_name = Column(Text)
+    patronymic = Column(Text, nullable=True)
+    birthday = Column(Date)
+    city = Column(Text)
+    bio = Column(Text)
 
     images = relationship("UserImage", backref='user')
 
     def __repr__(self):
-        return f'User({self.id = }, {self.telegram_id = }, {self.telegram_link = }, {self.telegram_name = }, {self.first_name = }, {self.last_name}, {self.surname = }, {self.birthday = }, {self.city = }, {self.bio = })'
+        return (
+            f'User(telegram_id={self.telegram_id}, telegram_link="{self.telegram_link}", telegram_name="{self.telegram_name}", '
+            f'first_name="{self.first_name}", last_name="{self.last_name}", patronymic="{self.patronymic}", birthday={self.birthday}, city="{self.city}", bio="{self.bio}")'
+        )
 
 
 class UserImage(BaseCommon):
     __tablename__ = "user_images"
 
-    path = Column(Text)
+    telegram_photo_id = Column(Text)
 
     user_id = Column(BigInteger, ForeignKey('users.id'))
+
+    def __repr__(self):
+        return f'UserImage(telegram_photo_id="{self.telegram_photo_id}"'
