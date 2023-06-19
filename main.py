@@ -59,7 +59,7 @@ async def main():
 
     # start
     try:
-        await dp.start_polling()
+        await dp.start_polling(allowed_updates=['message', 'callback_query'])
     finally:
         await dp.storage.close()
         await dp.storage.wait_closed()

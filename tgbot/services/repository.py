@@ -2,6 +2,7 @@ import logging
 
 from typing import List
 from datetime import date
+from sqlalchemy.orm import selectinload
 from sqlalchemy.future import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -19,7 +20,7 @@ class Repo:
         self.conn: AsyncSession = conn
 
 
-    async def add_user(self, telegram_id: int, telegram_first_name: str, first_name: str, last_name: str, surname: str, birthday: date, city: str, bio: str, images: list[str], telegram_last_name: str = "") -> None:
+    async def add_user(self, telegram_id: int, telegram_first_name: str, first_name: str, last_name: str, patronymic: str, birthday: date, city: str, bio: str, images: list[str], telegram_last_name: str = "") -> None:
         """Add new user to DB if doesn't exist
 
         Args:
@@ -27,7 +28,7 @@ class Repo:
             telegram_first_name (str): telegram first name
             first_name (str): real-life first name
             last_name (str): real-life last name
-            surname (str): real-life surname
+            patronymic (str): real-life patronymic
             birthday (date): birthday
             city (str): city
             bio (str): hobbies and achievements
@@ -41,10 +42,10 @@ class Repo:
         user = User(
             telegram_id=telegram_id,
             telegram_link=f"tg://user?id={telegram_id}",
-            telegram_name=telegram_first_name + telegram_last_name,
+            telegram_name=f'{telegram_first_name} {telegram_last_name}',
             first_name=first_name,
             last_name=last_name,
-            surname=surname,
+            patronymic=patronymic,
             birthday=birthday,
             city=city,
             bio=bio
@@ -53,7 +54,7 @@ class Repo:
         logger.info(f"add new user {user}")
 
         for image in images:
-            user_image = UserImage(path=image, user=user)
+            user_image = UserImage(telegram_photo_id=image, user=user)
             self.conn.add(user_image)
             logger.info(f"add new user image {user_image}")
 
@@ -85,13 +86,9 @@ class Repo:
             User | None: user object
         """
 
-        return next(
-            iter(
-                row 
-                for row in await self.conn.execute(
-                    select(User).where(User.telegram_id == telegram_id)
-                )
-            ),
-            None
+        res = await self.conn.execute(
+            select(User).where(User.telegram_id == telegram_id).options(selectinload(User.images))
         )
+
+        return res.scalars().one()
 
