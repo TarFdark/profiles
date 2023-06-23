@@ -1,3 +1,5 @@
+import logging
+
 from datetime import datetime
 
 from aiogram import Dispatcher
@@ -6,16 +8,30 @@ from aiogram.dispatcher.filters import Text
 from aiogram.types import Message, CallbackQuery, InputMediaPhoto
 
 from tgbot.states.FillProfile import FillProfile
+from tgbot.states.EditProfileBio import EditProfileBio
+from tgbot.states.EditProfilePhotos import EditProfilePhotos
 from tgbot.services.repository import Repo
-from tgbot.utils.keyboards import get_fill_profile_keyboard
+from tgbot.utils.keyboards import get_fill_profile_keyboard, get_edit_profile_keyboard
+
+
+logger = logging.getLogger(__name__)
 
 
 async def start(message: Message):
     await message.answer('start msg')
 
 
-async def fill_profile(message: Message, state: FSMContext):
-    await message.answer('Хорошо! Начинаем заполнение анкеты полностью. Введите ФИО полностью (отчество необязательно)')
+async def cancel(message: Message, state: FSMContext):
+    await message.answer('Командна отменена')
+    await state.finish()
+
+
+async def fill_profile(message: Message, state: FSMContext, repo: Repo):
+    user = await repo.get_user(message.from_id)
+    if user:
+        await message.answer('У вас уже добавлена анкета, при продолжении прошлые данные будут удалены без возможности восстановления! Для отмены, используйте команду /cancel.')
+
+    await message.answer('Введите ФИО полностью (отчество необязательно)')
     await state.set_state(FillProfile.here_full_name.state)
 
 
@@ -29,6 +45,7 @@ async def fill_profile_full_name(message: Message, state: FSMContext):
     data = {
         "last_name": full_name[0],
         "first_name": full_name[1],
+        "patronymic": None
     }
     if len(full_name) == 3:
         data["patronymic"] = full_name[2]
@@ -45,7 +62,7 @@ async def fill_profile_birthday(message: Message, state: FSMContext):
         return await message.answer('Неверный формат!')
 
     await state.update_data(birthday=birthday)
-    await message.answer('Введите город')
+    await message.answer('Введите место проживания')
     await FillProfile.next()
 
 
@@ -57,12 +74,11 @@ async def fill_profile_city(message: Message, state: FSMContext):
 
 async def fill_profile_bio(message: Message, state: FSMContext):
     await state.update_data(bio=message.text, photos=[])
-    await message.answer('Отправьте от 1 до 3 фото для профиля', reply_markup=get_fill_profile_keyboard())
+    await message.answer('Отправьте от 1 до 3 фото для профиля', reply_markup=get_fill_profile_keyboard('new_profile_photos'))
     await FillProfile.next()
 
 
 async def fill_profile_photo(message: Message, state: FSMContext):
-    print(message.photo)
     data = await state.get_data()
     photos = data["photos"]
     if len(photos) > 3:
@@ -94,7 +110,8 @@ async def apply_fill_profile(call: CallbackQuery, state: FSMContext, repo: Repo)
             images=data["photos"],
             telegram_last_name="" if call.from_user.last_name is None else call.from_user.last_name
         )
-    except BaseException:
+    except BaseException as e:
+        logger.error(e)
         return await call.message.answer('Возникла неожиданная ошибка! Попробуйте еще раз')
     
     await call.message.answer('Анкета успешно добавлена')
@@ -106,17 +123,17 @@ async def get_profile(message: Message, state: FSMContext, repo: Repo):
     
     user = await repo.get_user(message.reply_to_message.from_id)
 
-    if user is None:
+    if not user:
         return await message.answer('Анкеты этого пользователя нет в боте ¯\_(ツ)_/¯')
     
     media_group = []
     text = ''.join(
         [
             'ФИО' if user.patronymic else 'ФИ',
-            f': {user.first_name} {user.last_name} {user.patronymic}\n',
+            f': {user.last_name} {user.first_name} {user.patronymic if user.patronymic else ""}\n',
             f'Дата рождения: {user.birthday}\n',
             f'Город: {user.city}\n',
-            f'О себе: {user.bio}\n',
+            f'О себе: {user.bio}',
         ]
     )
     for i, image in enumerate(user.images):
@@ -125,13 +142,79 @@ async def get_profile(message: Message, state: FSMContext, repo: Repo):
     await message.answer_media_group(media_group)
 
 
+async def edit_profile(message: Message, repo: Repo):
+    user = await repo.get_user(message.from_id)
+
+    if not user:
+        return await message.answer('Вашей анкеты нет в боте')
+    
+    await message.answer(
+        'Выберите параметр, который необходимо изменить. Остальные параметры (имя, город и т.д.) можно изменить только при повторном полном заполнении анкеты (/fill_profile)',
+        reply_markup=get_edit_profile_keyboard()
+    )
+
+
+async def edit_profile_bio(call: CallbackQuery, state: FSMContext):
+    await call.answer()
+    await call.message.answer('Введите новое био (старое будет удалено без возможности восстановления)')
+    await state.set_state(EditProfileBio.here_new_bio.state)
+
+
+async def here_bio_edit_profile(message: Message, state: FSMContext, repo: Repo):
+    await repo.update_user(message.from_id, bio=message.text)
+    await message.answer('Данные были успешно обновлены')
+    await state.finish()
+
+
+async def edit_profile_photos(call: CallbackQuery, state: FSMContext):
+    await call.answer()
+    await call.message.answer('Отправьте от 1 до 3 фото для профиля (старые будут удалены без возможности восстановления)', reply_markup=get_fill_profile_keyboard('update_profile_photos'))
+    await state.set_state(EditProfilePhotos.here_photo.state)
+    await state.update_data(photos=[])
+
+
+async def here_photos_edit_profile(message: Message, state: FSMContext):
+    data = await state.get_data()
+    photos = data["photos"]
+    if len(photos) > 3:
+        return await message.answer('Вы уже добавили макс. количество фото')
+    
+    photo_id = max(message.photo, key=lambda x: x.height).file_id
+    photos.append(photo_id)
+    await state.update_data(photos=photos)
+
+    
+async def apply_update_profile_photos(call: CallbackQuery, state: FSMContext, repo: Repo):
+    data = await state.get_data()
+    photos = data["photos"]
+
+    if not (1 <= len(photos) <= 3):
+        return await call.message.answer(f'Необходимо добавить от 1 до 3 фото, не {len(photos)} шт.')
+    
+    await repo.delete_user_photos(call.from_user.id)
+    for photo in photos:
+        await repo.add_user_photo(call.from_user.id, photo)
+
+    await call.message.answer('Фото успешно обновлены')
+
+
 def register_main(dp: Dispatcher):
+    dp.register_message_handler(start, commands="start", state="*")
+    dp.register_message_handler(cancel, commands="cancel", state="*")
+
     dp.register_message_handler(fill_profile, commands="fill_profile", state="*")
     dp.register_message_handler(fill_profile_full_name, state=FillProfile.here_full_name)
     dp.register_message_handler(fill_profile_birthday, state=FillProfile.here_birthday)
     dp.register_message_handler(fill_profile_city, state=FillProfile.here_city)
     dp.register_message_handler(fill_profile_bio, state=FillProfile.here_bio)
     dp.register_message_handler(fill_profile_photo, state=FillProfile.here_photo, content_types=['photo'])
-    dp.register_callback_query_handler(apply_fill_profile, Text('apply_photos'), state=FillProfile.here_photo)
+    dp.register_callback_query_handler(apply_fill_profile, Text('apply_new_profile_photos'), state=FillProfile.here_photo)
 
     dp.register_message_handler(get_profile, commands="get_profile", state="*")
+
+    dp.register_message_handler(edit_profile, commands="edit_profile", state="*")
+    dp.register_callback_query_handler(edit_profile_bio, Text('edit_bio'), state='*')
+    dp.register_message_handler(here_bio_edit_profile, state=EditProfileBio.here_new_bio)
+    dp.register_callback_query_handler(edit_profile_photos, Text('edit_photos'), state='*')
+    dp.register_message_handler(here_photos_edit_profile, state=EditProfilePhotos.here_photo, content_types=['photo'])
+    dp.register_callback_query_handler(apply_update_profile_photos, Text('apply_update_profile_photos'), state=EditProfilePhotos.here_photo)

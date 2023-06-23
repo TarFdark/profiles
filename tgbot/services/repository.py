@@ -20,7 +20,7 @@ class Repo:
         self.conn: AsyncSession = conn
 
 
-    async def add_user(self, telegram_id: int, telegram_first_name: str, first_name: str, last_name: str, patronymic: str, birthday: date, city: str, bio: str, images: list[str], telegram_last_name: str = "") -> None:
+    async def add_user(self, telegram_id: int, telegram_first_name: str, first_name: str, last_name: str, birthday: date, city: str, bio: str, images: list[str], telegram_last_name: str = "", patronymic: str = None) -> None:
         """Add new user to DB if doesn't exist
 
         Args:
@@ -28,16 +28,19 @@ class Repo:
             telegram_first_name (str): telegram first name
             first_name (str): real-life first name
             last_name (str): real-life last name
-            patronymic (str): real-life patronymic
             birthday (date): birthday
             city (str): city
             bio (str): hobbies and achievements
             images (list[str]): paths to user images (from 1 to 3 images allowed)
             telegram_last_name (str, optional): telegram last name. Defaults to "".
+            patronymic (str, optional): real-life patronymic. Defaults to None.
         """
-
         if not 1 <= len(images) <= 3:
             raise ValueError(f'Allowed from 1 to 3 images, not {len(images)}')
+
+        kwargs = {}
+        if patronymic:
+            kwargs['patronymic'] = patronymic
 
         user = User(
             telegram_id=telegram_id,
@@ -45,10 +48,10 @@ class Repo:
             telegram_name=f'{telegram_first_name} {telegram_last_name}',
             first_name=first_name,
             last_name=last_name,
-            patronymic=patronymic,
             birthday=birthday,
             city=city,
-            bio=bio
+            bio=bio,
+            **kwargs
         )
         self.conn.add(user)
         logger.info(f"add new user {user}")
@@ -89,6 +92,44 @@ class Repo:
         res = await self.conn.execute(
             select(User).where(User.telegram_id == telegram_id).options(selectinload(User.images))
         )
+        
+        return res.scalars().first()
+    
 
-        return res.scalars().one()
+    async def update_user(self, telegram_id: int, **kwargs):
+        user = await self.get_user(telegram_id)
 
+        if not user:
+            raise ValueError(f'User with id {telegram_id} doesn\'t exist')
+
+        for key, value in kwargs.items():
+            if not hasattr(User, key):
+                raise ValueError(f'Class `User` doesn\'t have argument {key}') 
+            setattr(user, key, value)
+
+        await self.conn.commit()
+
+
+    async def add_user_photo(self, telegram_user_id: int, telegram_photo_id):
+        user = await self.get_user(telegram_user_id)
+        if not user:
+            raise ValueError(f'User with id {telegram_user_id} doesn\'t exist')
+        
+        user_image = UserImage(telegram_photo_id=telegram_photo_id, user=user)
+        self.conn.add(user_image)
+        await self.conn.commit()
+
+
+    async def delete_user_photos(self, telegram_user_id: int):
+        user = await self.get_user(telegram_user_id)
+        if not user:
+            raise ValueError(f'User with id {telegram_user_id} doesn\'t exist')
+        
+        res = await self.conn.execute(
+            select(UserImage).where(UserImage.user_id == user.id)
+        )
+        user_images = res.scalars().all()
+        for img in user_images:
+            await self.conn.delete(img)
+
+        await self.conn.commit()
