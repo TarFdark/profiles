@@ -11,14 +11,15 @@ from tgbot.states.FillProfile import FillProfile
 from tgbot.states.EditProfileBio import EditProfileBio
 from tgbot.states.EditProfilePhotos import EditProfilePhotos
 from tgbot.services.repository import Repo
-from tgbot.utils.keyboards import get_fill_profile_keyboard, get_edit_profile_keyboard
+from tgbot.utils.keyboards import get_fill_profile_keyboard, get_edit_profile_keyboard, get_user_actions_keyboard, get_empty_keyboard
 
 
 logger = logging.getLogger(__name__)
 
 
-async def start(message: Message):
-    await message.answer('start msg')
+async def start(message: Message, state: FSMContext):
+    await message.answer('Старт юзер месседж сука!', reply_markup=get_user_actions_keyboard())
+    await state.finish()
 
 
 async def cancel(message: Message, state: FSMContext):
@@ -31,7 +32,7 @@ async def fill_profile(message: Message, state: FSMContext, repo: Repo):
     if user:
         await message.answer('У вас уже добавлена анкета, при продолжении прошлые данные будут удалены без возможности восстановления! Для отмены, используйте команду /cancel.')
 
-    await message.answer('Введите ФИО полностью (отчество необязательно)')
+    await message.answer('Введите ФИО полностью (отчество необязательно)', reply_markup=get_empty_keyboard())
     await state.set_state(FillProfile.here_full_name.state)
 
 
@@ -146,7 +147,7 @@ async def edit_profile(message: Message, repo: Repo):
     user = await repo.get_user(message.from_id)
 
     if not user:
-        return await message.answer('Вашей анкеты нет в боте')
+        return await message.answer('Вашей анкеты нет в боте', reply_markup=get_empty_keyboard())
     
     await message.answer(
         'Выберите параметр, который необходимо изменить. Остальные параметры (имя, город и т.д.) можно изменить только при повторном полном заполнении анкеты (/fill_profile)',
@@ -202,7 +203,7 @@ def register_main(dp: Dispatcher):
     dp.register_message_handler(start, commands="start", state="*")
     dp.register_message_handler(cancel, commands="cancel", state="*")
 
-    dp.register_message_handler(fill_profile, commands="fill_profile", state="*")
+    dp.register_message_handler(fill_profile, Text("Заполнить профиль"), state="*")
     dp.register_message_handler(fill_profile_full_name, state=FillProfile.here_full_name)
     dp.register_message_handler(fill_profile_birthday, state=FillProfile.here_birthday)
     dp.register_message_handler(fill_profile_city, state=FillProfile.here_city)
@@ -212,7 +213,7 @@ def register_main(dp: Dispatcher):
 
     dp.register_message_handler(get_profile, commands="get_profile", state="*")
 
-    dp.register_message_handler(edit_profile, commands="edit_profile", state="*")
+    dp.register_message_handler(edit_profile, Text("Изменить профиль"), state="*")
     dp.register_callback_query_handler(edit_profile_bio, Text('edit_bio'), state='*')
     dp.register_message_handler(here_bio_edit_profile, state=EditProfileBio.here_new_bio)
     dp.register_callback_query_handler(edit_profile_photos, Text('edit_photos'), state='*')

@@ -10,4 +10,5 @@ async def user_start(message: Message, repo: Repo):
 
 
 def register_user(dp: Dispatcher):
-    dp.register_message_handler(user_start, commands=["start"], state="*")
+    # dp.register_message_handler(user_start, commands=["start"], state="*")
+    pass
