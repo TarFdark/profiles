@@ -71,15 +71,14 @@ class Repo:
             List[User]: list of users
         """
 
-        return [
-            row 
-            for row in await self.conn.execute(
+        res = await self.conn.execute(
                 select(User)
             )
-        ]
+
+        return res.scalars().all()
 
 
-    async def get_user(self, telegram_id: int) -> User | None:
+    async def get_user_by_telegram_id(self, telegram_id: int) -> User | None:
         """Return user by telegram id or None
 
         Args:
@@ -96,11 +95,33 @@ class Repo:
         return res.scalars().first()
     
 
-    async def update_user(self, telegram_id: int, **kwargs):
-        user = await self.get_user(telegram_id)
+    async def get_user_by_id(self, id: int) -> User | None:
+        """Return user by id or None
+
+        Args:
+            id (int): user id
+
+        Returns:
+            User | None: user object
+        """
+
+        res = await self.conn.execute(
+            select(User).where(User.id == id).options(selectinload(User.images))
+        )
+        
+        return res.scalars().first()
+    
+
+    async def update_user(self, telegram_id: int = None, id: int = None, **kwargs):
+        if telegram_id:
+            user = await self.get_user_by_telegram_id(telegram_id)
+        elif id:
+            user = await self.get_user_by_id(id)
+        else:
+            raise ValueError(f'Telegram ID or id is requiered')
 
         if not user:
-            raise ValueError(f'User with id {telegram_id} doesn\'t exist')
+            raise ValueError(f'User with id {telegram_id if telegram_id else id} doesn\'t exist')
 
         for key, value in kwargs.items():
             if not hasattr(User, key):
@@ -110,8 +131,18 @@ class Repo:
         await self.conn.commit()
 
 
+    async def delete_user(self, id: int):
+        user = await self.get_user_by_id(id)
+
+        if not user:
+            raise ValueError(f'User with id {id} doesn\'t exist')
+        
+        await self.conn.delete(user)
+        await self.conn.commit()
+
+
     async def add_user_photo(self, telegram_user_id: int, telegram_photo_id):
-        user = await self.get_user(telegram_user_id)
+        user = await self.get_user_by_telegram_id(telegram_user_id)
         if not user:
             raise ValueError(f'User with id {telegram_user_id} doesn\'t exist')
         
@@ -121,7 +152,7 @@ class Repo:
 
 
     async def delete_user_photos(self, telegram_user_id: int):
-        user = await self.get_user(telegram_user_id)
+        user = await self.get_user_by_telegram_id(telegram_user_id)
         if not user:
             raise ValueError(f'User with id {telegram_user_id} doesn\'t exist')
         

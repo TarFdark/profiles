@@ -1,5 +1,7 @@
 from aiogram import types
 
+from db.models import User
+
 
 def get_user_actions_keyboard() -> types.ReplyKeyboardMarkup:
     keyboard = types.ReplyKeyboardMarkup()
@@ -30,6 +32,35 @@ def get_edit_profile_keyboard() -> types.InlineKeyboardMarkup:
     buttons = [
         types.InlineKeyboardButton(text='Био', callback_data='edit_bio'),
         types.InlineKeyboardButton(text='Фотографии', callback_data='edit_photos'),
+    ]
+    keyboard = types.InlineKeyboardMarkup()
+    keyboard.add(*buttons)
+    return keyboard
+
+
+def get_users_keyboard(users: list[User]) -> types.InlineKeyboardMarkup:
+    buttons = []
+    for user in users:
+        buttons.append(types.InlineKeyboardButton(text=f'{user.first_name[0]}. {user.last_name}', callback_data=f'user_{user.id}'))
+
+    keyboard = types.InlineKeyboardMarkup()
+    keyboard.add(*buttons)
+    return keyboard
+
+
+def get_admin_edit_profile_keyboard() -> types.InlineKeyboardMarkup:
+    buttons = [
+        types.InlineKeyboardButton(text='Изменить био', callback_data='admin_edit_bio'),
+        types.InlineKeyboardButton(text='Удалить анкету', callback_data='admin_delete_profile'),
+    ]
+    keyboard = types.InlineKeyboardMarkup()
+    keyboard.add(*buttons)
+    return keyboard
+
+
+def get_delete_user_keyboard() -> types.InlineKeyboardMarkup:
+    buttons = [
+        types.InlineKeyboardButton(text='Удаляем', callback_data='delete_user'),
     ]
     keyboard = types.InlineKeyboardMarkup()
     keyboard.add(*buttons)
