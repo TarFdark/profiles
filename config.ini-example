@@ -1,0 +1,6 @@
+[tg_bot]
+token = 'token'
+admin_ids = 1, 2
+
+[db]
+database = profiles

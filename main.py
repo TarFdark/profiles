@@ -49,7 +49,7 @@ async def main():
     await set_commands(bot)
     dp = Dispatcher(bot, storage=storage)
     dp.middleware.setup(DbMiddleware(pool))
-    dp.middleware.setup(RoleMiddleware(config.tg_bot.admin_id))
+    dp.middleware.setup(RoleMiddleware(config.tg_bot.admin_ids))
     dp.filters_factory.bind(RoleFilter)
     dp.filters_factory.bind(AdminFilter)
 

@@ -47,4 +47,4 @@ class UserImage(BaseCommon):
     user_id = Column(BigInteger, ForeignKey('users.id'))
 
     def __repr__(self):
-        return f'UserImage(telegram_photo_id="{self.telegram_photo_id}"'
+        return f'UserImage(telegram_photo_id="{self.telegram_photo_id}")'
