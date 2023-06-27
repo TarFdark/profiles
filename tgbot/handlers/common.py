@@ -28,7 +28,7 @@ async def cancel(message: Message, state: FSMContext):
 
 
 async def fill_profile(message: Message, state: FSMContext, repo: Repo):
-    user = await repo.get_user(message.from_id)
+    user = await repo.get_user_by_telegram_id(message.from_id)
     if user:
         await message.answer('У вас уже добавлена анкета, при продолжении прошлые данные будут удалены без возможности восстановления! Для отмены, используйте команду /cancel.')
 
@@ -82,7 +82,7 @@ async def fill_profile_bio(message: Message, state: FSMContext):
 async def fill_profile_photo(message: Message, state: FSMContext):
     data = await state.get_data()
     photos = data["photos"]
-    if len(photos) > 3:
+    if len(photos) >= 3:
         return await message.answer('Вы уже добавили макс. количество фото')
     
     photo_id = max(message.photo, key=lambda x: x.height).file_id
@@ -122,7 +122,7 @@ async def get_profile(message: Message, state: FSMContext, repo: Repo):
     if message.reply_to_message is None:
         return await message.answer('Для использования этой команды, отправьте ее в ответ на сообщения участника, чью анкету надо просмотреть')
     
-    user = await repo.get_user(message.reply_to_message.from_id)
+    user = await repo.get_user_by_telegram_id(message.reply_to_message.from_id)
 
     if not user:
         return await message.answer('Анкеты этого пользователя нет в боте ¯\_(ツ)_/¯')
@@ -144,7 +144,7 @@ async def get_profile(message: Message, state: FSMContext, repo: Repo):
 
 
 async def edit_profile(message: Message, repo: Repo):
-    user = await repo.get_user(message.from_id)
+    user = await repo.get_user_by_telegram_id(message.from_id)
 
     if not user:
         return await message.answer('Вашей анкеты нет в боте', reply_markup=get_empty_keyboard())
@@ -177,7 +177,7 @@ async def edit_profile_photos(call: CallbackQuery, state: FSMContext):
 async def here_photos_edit_profile(message: Message, state: FSMContext):
     data = await state.get_data()
     photos = data["photos"]
-    if len(photos) > 3:
+    if len(photos) >= 3:
         return await message.answer('Вы уже добавили макс. количество фото')
     
     photo_id = max(message.photo, key=lambda x: x.height).file_id
